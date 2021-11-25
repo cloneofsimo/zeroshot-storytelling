@@ -1,0 +1,8 @@
+__pycache__
+ckpts
+_*
+__*
+*.pth
+nohup.out
+*.jpg
+wandb
