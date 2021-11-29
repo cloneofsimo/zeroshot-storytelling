@@ -16,11 +16,13 @@ def load_model(name: str = "distilgpt2"):
 class CLIPTeller:
     def __init__(self,
                  model_name: str = "distilgpt2",
-                 device: str = "cuda:0") -> None:
+                 device: str = "cuda:0",
+                 batch_size: int = 16) -> None:
 
         # Load guider
         self.device = device
         self.guider = CLIPGuide(device=device)
+        self.batch_size = batch_size
 
         print("Done Loading CLIP")
 
@@ -115,23 +117,24 @@ class CLIPTeller:
         return story
 
     @torch.no_grad()
-    def _batch_lm_beam(self,
-                       init_str: List[str],
-                       n: int = 100,
-                       beam_length: int = 3,
-                       temperature: float = 0.7,
-                       batch_size: int = 16) -> List[str]:
+    def _batch_lm_beam(
+        self,
+        init_str: List[str],
+        n: int = 100,
+        beam_length: int = 3,
+        temperature: float = 0.7,
+    ) -> List[str]:
         jdx = 0
         init_batch = []
         while jdx < len(init_str):
             init_batch.extend(
                 self.lm_beam(
-                    init_str[jdx:jdx + batch_size],
+                    init_str[jdx:jdx + self.batch_size],
                     n=n,
                     beam_length=beam_length,
                     temperature=temperature,
                 ))
-            jdx += batch_size
+            jdx += self.batch_size
 
         return init_batch
 
@@ -143,7 +146,6 @@ class CLIPTeller:
         n_pool: int = 1200,
         n_candidate: int = 400,
         extension_length: str = 30,
-        batch_size: int = 16,
         temperature: float = 1.0,
         beam_length: int = 3,
         verbose: bool = False,
@@ -167,7 +169,7 @@ class CLIPTeller:
 
         for idx in range(100):
 
-            scores = self.guider.batch_score(init_batch, batch_size=batch_size)
+            scores = self.guider.batch_score(init_batch, self.batch_size)
             scores = torch.tensor(scores)
             val, inds = scores.topk(n_candidate)
             cands = [init_batch[i] for i in inds]
@@ -189,7 +191,6 @@ class CLIPTeller:
                 n=n_pool,
                 beam_length=beam_length,
                 temperature=temperature,
-                batch_size=batch_size,
             )
 
             init_batch = cands
@@ -205,7 +206,6 @@ class CLIPTeller:
         n_pool: int = 400,
         n_candidate: int = 200,
         gradual_length: int = 100,
-        batch_size: int = 16,
         temperature: float = 0.7,
         beam_length: int = 2,
         verbose: bool = True,
@@ -213,10 +213,10 @@ class CLIPTeller:
         texts, img_urls = self.get_story_sentence_img_pairs(story_id)
 
         # Get story
-        init_batch = self.lm_beam(init_str,
-                                  n=n_pool,
-                                  beam_length=beam_length,
-                                  temperature=temperature)
+        init_batch = self._batch_lm_beam(init_str,
+                                         n=n_pool,
+                                         beam_length=beam_length,
+                                         temperature=temperature)
         n_imgs = len(img_urls)
 
         for idx in range(n_imgs):
@@ -227,7 +227,6 @@ class CLIPTeller:
                 n_pool=n_pool,
                 n_candidate=n_candidate,
                 extension_length=gradual_length,
-                batch_size=batch_size,
                 temperature=temperature,
                 beam_length=beam_length,
                 verbose=verbose,
@@ -245,7 +244,6 @@ class CLIPTeller:
         n_candidate: int = 800,
         total_length: str = 500,
         gradual_length: int = 100,
-        batch_size: int = 16,
         temperature: float = 0.7,
         beam_length: int = 2,
     ) -> List[str]:
@@ -272,7 +270,8 @@ class CLIPTeller:
             start_len = max(sidx * gradual_length - 20, 0)
             trunc_set = [se[start_len:] for se in init_batch]
 
-            scores = self.guider.batch_score(trunc_set, batch_size=16)
+            scores = self.guider.batch_score(trunc_set,
+                                             batch_size=self.batch_size)
             scores = torch.tensor(scores)
 
             val, inds = scores.topk(n_candidate)
@@ -296,33 +295,97 @@ class CLIPTeller:
                 n=n_pool,
                 beam_length=beam_length,
                 temperature=temperature,
-                batch_size=batch_size,
             )
 
         return cands
 
-    def evaluate(self,
-                 img_path: str,
-                 sentence: str,
-                 prv_sentences: List[str],
-                 n_pool: int = 1600,
-                 n_candidate: int = 800,
-                 beam_length: int = 20,
-                 temperature: float = 0.8,
-                 batch_size: int = 16) -> float:
+    def acc_evaluate(self,
+                     img_path: str,
+                     sentence: str,
+                     prv_sentences: List[str],
+                     n_pool: int = 800,
+                     n_candidate: int = 400,
+                     extension_for_eval: int = 8,
+                     beam_length: int = 2,
+                     temperature: float = 0.5,
+                     verbose: bool = False,
+                     test_baseline: bool = False) -> float:
         """
         Evaluate the score of a sentence with a given image
         """
         self.guider.set_img(img_path)
+        prv_sentences = " ".join(prv_sentences)
 
-        prv_sentences = "".join(prv_sentences)
+        cnt = 0
 
         for end_ptr in range(len(sentence)):
-            init_str = prv_sentences + sentence[:end_ptr]
-            candidates = self.lm_beam(init_str,
-                                      n=n_pool,
-                                      beam_length=beam_length,
-                                      temperature=temperature)
+            init_str = prv_sentences + " " + sentence[:end_ptr]
+            gt_char = sentence[end_ptr]
+
+            if test_baseline:
+                candidates = self.lm_beam(init_str,
+                                          n=n_pool,
+                                          beam_length=extension_for_eval,
+                                          temperature=temperature)
+            else:
+                candidates = self.continue_single_image_caption(
+                    init_str=init_str,
+                    img_path=img_path,
+                    n_pool=n_pool,
+                    n_candidate=n_candidate,
+                    extension_length=extension_for_eval,
+                    temperature=temperature,
+                    beam_length=beam_length,
+                    verbose=False,
+                )
+
+            print("DOING", end_ptr, "th eval", candidates[0], init_str)
+
+            char_hat = candidates[0][len(init_str)]
+            if char_hat == gt_char:
+                cnt += 1
+
+                print("\n\n GOT RIGHT \n\n")
+
+        return cnt / len(sentence)
+
+    def eval_vist_story(
+        self,
+        story_id: int = 40470,
+        img_base_path: str = "./VIST/sis/val/",
+        verbose: bool = True,
+        n_set: int = 2,
+    ) -> float:
+        texts, img_urls = self.get_story_sentence_img_pairs(story_id)
+
+        tot_acc = 0
+
+        for idx in range(n_set):
+            acc = self.acc_evaluate(img_base_path + img_urls[idx],
+                                    texts[idx],
+                                    texts[:idx],
+                                    verbose=verbose)
+            tot_acc += acc
+
+        return tot_acc / n_set
+
+    def eval_set(self, n_set: int = 2) -> float:
+        testset = [
+            40470, 40471, 40472, 40473, 40474, 40475, 40476, 40477, 40478,
+            40479, 40480, 40481, 40482, 40483, 40484, 40485, 40486, 40487,
+            40488, 40489
+        ][:2]
+
+        total_acc = 0
+
+        for idx in testset:
+            acc = self.eval_vist_story(story_id=idx,
+                                       n_set=n_set,
+                                       verbose=False)
+            total_acc += acc
+            print(f"Accuracy of Story {idx} : {acc}")
+
+        return total_acc / len(testset)
 
 
 if __name__ == "__main__":

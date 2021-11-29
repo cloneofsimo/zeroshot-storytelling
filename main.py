@@ -10,12 +10,13 @@ if __name__ == "__main__":
 
     # model_name = "gpt2-medium"
 
-    stories = CLIPTeller(model_name=model_name).generate_vist_story_v2(
-        story_id=40470, init_str=" ", temperature=0.8)
+    # stories = CLIPTeller(model_name=model_name).generate_vist_story_v2(
+    #     story_id=40470, init_str=" ", temperature=0.8)
 
-    story = CLIPTeller(
-        model_name=model_name).continue_single_image_caption()[0]
+    # story = CLIPTeller(
+    #     model_name=model_name).continue_single_image_caption()[0]
 
+    story = CLIPTeller(model_name=model_name).eval_set()
     print(story)
 #  �Eating from a home in Huntingdon in August was a major part of the eco-trotting programme.
 #   In September 2011, Eating from a home in Huntingdon, WA was the single most popular meal in Australia.
