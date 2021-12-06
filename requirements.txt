@@ -1,0 +1,4 @@
+numpy @ file:///tmp/build/80754af9/numpy_and_numpy_base_1618497241363/work
+pandas==1.2.4
+torch==1.9.1
+torchvision==0.10.1

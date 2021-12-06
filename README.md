@@ -20,6 +20,23 @@ _This work was submitted to COSE474-2021F Deep Learning @ Korea University_
 
 > 39 men in America's annual yearly military academy (walking the steps to the stratosphere). Learn more about how Arizona organized military schools (#IGCF) organize, organise, and in action!
 
+<!-- #region -->
+<p align="center">
+<img  src="assets/vigs_example5.png">
+</p>
+
+> The visitors and family members of the tributary roof were invited to join in a family gathering on the state’s Gran Lucha Park in Wellington.. The cuisine and food, featuring a combination of strong sauces and clams, was presented by a three year old boy who came down to the Tackles Centre on the Sunshine Coast and died when he fell in the water.Members of the Tackles Centre have been growing to enjoy the comfort of the three-year old boy in the water.
+
+## Requirements
+
+Create and environment. Than, install CLIP from https://github.com/openai/CLIP.
+
+Install other packages with
+
+```
+pip install -r requirements.txt
+```
+
 ## How to use
 
 To perform VIST Dataset evaluation, you need to first download the dataset. Executing `downloader.py` will download the dataset.
