@@ -162,10 +162,10 @@ class CLIPTeller:
         else:
             init_length = len(init_str[0])
 
-        init_batch = self.lm_beam(init_str,
-                                  n=n_pool,
-                                  beam_length=beam_length,
-                                  temperature=temperature)
+        init_batch = self._batch_lm_beam(init_str,
+                                         n=n_pool,
+                                         beam_length=beam_length,
+                                         temperature=temperature)
 
         for idx in range(100):
 
@@ -209,6 +209,7 @@ class CLIPTeller:
         temperature: float = 0.7,
         beam_length: int = 2,
         verbose: bool = True,
+        early_stop_idx: int = None,
     ):
         texts, img_urls = self.get_story_sentence_img_pairs(story_id)
 
@@ -231,6 +232,9 @@ class CLIPTeller:
                 beam_length=beam_length,
                 verbose=verbose,
             )
+
+            if idx is early_stop_idx:
+                break
 
         return init_batch
 
@@ -323,8 +327,9 @@ class CLIPTeller:
             gt_char = sentence[end_ptr]
 
             if test_baseline:
+                init_str = [init_str] * 2
                 candidates = self.lm_beam(init_str,
-                                          n=n_pool,
+                                          n=2,
                                           beam_length=extension_for_eval,
                                           temperature=temperature)
             else:
@@ -339,13 +344,13 @@ class CLIPTeller:
                     verbose=False,
                 )
 
-            print("DOING", end_ptr, "th eval", candidates[0], init_str)
+            #print("DOING", end_ptr, "th eval", candidates[0], init_str)
 
             char_hat = candidates[0][len(init_str)]
             if char_hat == gt_char:
                 cnt += 1
 
-                print("\n\n GOT RIGHT \n\n")
+                #print("\n\n GOT RIGHT \n\n")
 
         return cnt / len(sentence)
 
@@ -355,6 +360,7 @@ class CLIPTeller:
         img_base_path: str = "./VIST/sis/val/",
         verbose: bool = True,
         n_set: int = 2,
+        test_baseline: bool = False,
     ) -> float:
         texts, img_urls = self.get_story_sentence_img_pairs(story_id)
 
@@ -364,32 +370,54 @@ class CLIPTeller:
             acc = self.acc_evaluate(img_base_path + img_urls[idx],
                                     texts[idx],
                                     texts[:idx],
-                                    verbose=verbose)
+                                    verbose=verbose,
+                                    test_baseline=test_baseline)
             tot_acc += acc
 
         return tot_acc / n_set
 
-    def eval_set(self, n_set: int = 2) -> float:
+    def eval_set(self,
+                 n_set: int = 2,
+                 n_testset: int = 5,
+                 test_baseline: bool = False) -> float:
         testset = [
             40470, 40471, 40472, 40473, 40474, 40475, 40476, 40477, 40478,
-            40479, 40480, 40481, 40482, 40483, 40484, 40485, 40486, 40487,
-            40488, 40489
-        ][:2]
+            40479
+        ]
 
         total_acc = 0
 
-        for idx in testset:
+        for idx in testset[:n_testset]:
             acc = self.eval_vist_story(story_id=idx,
                                        n_set=n_set,
-                                       verbose=False)
+                                       verbose=False,
+                                       test_baseline=test_baseline)
             total_acc += acc
             print(f"Accuracy of Story {idx} : {acc}")
 
-        return total_acc / len(testset)
+        return total_acc / n_testset
 
 
 if __name__ == "__main__":
-    # test_str = "This is image of"
-    # test_str = "This is a picture of"
-    # test_str = "This is a picture of a dog"
-    pass
+
+    init_str = "This is a picture of"
+
+    model_name = "distilgpt2"
+    #model_name = "gpt2-medium"
+    #model_name = "gpt2"
+
+    story = CLIPTeller(model_name=model_name).generate_vist_story_v2(
+        story_id=40481,
+        init_str=init_str,
+        temperature=1.0,
+        n_pool=800,
+        n_candidate=200,
+        early_stop_idx=2,
+        gradual_length=100)[0]
+
+    print("DONE GEN")
+    print(story)
+
+    # This is a pictur from the YMCA's website, which shows a group of kids playing with a toy called the "smoke ball."
+
+    # This is a picturational example of a boy in a group of kids playing a game with a girl.

@@ -1,26 +1,31 @@
-# Zero Shot Visual Stortelling with CLIP
+# Zero Shot Visual Storytelling
 
-# Related Works:
+Zero shot visual storytelling, using GPT-2 and CLIP and beam search. See [the paper](assets/zeroshot_visual_storytelling.pdf) for more details.
 
-Visual Storytelling:
-https://arxiv.org/abs/1604.03968
+_This work was submitted to COSE474-2021F Deep Learning @ Korea University_
 
-StoryGAN:
-https://openaccess.thecvf.com/content_CVPR_2019/papers/Li_StoryGAN_A_Sequential_Conditional_GAN_for_Story_Visualization_CVPR_2019_paper.pdf
+## Example output of our methods.
 
-Generating images from caption and vice versa
-via CLIP-Guided Generative Latent Space Search
-https://arxiv.org/pdf/2102.01645.pdf
+<!-- #region -->
+<p align="center">
+<img  src="assets/vigs_example2.png">
+</p>
 
-Expressing an Image Stream with a Sequence of
-Natural Sentences
-https://proceedings.neurips.cc/paper/2015/file/17e62166fc8586dfa4d1bc0e1742c08b-Paper.pdf
+> This is a picturising scenario involving a group of people playing with a toy. The game is a single player or group game with three or four players.
 
-Ranking and Retrieval of Image Sequences from Multiple Paragraph Queries
-https://openaccess.thecvf.com/content_cvpr_2015/papers/Kim_Ranking_and_Retrieval_2015_CVPR_paper.pdf
+<!-- #region -->
+<p align="center">
+<img  src="assets/vigs_example3.png">
+</p>
 
-Knowledge-Enriched Visual Storytelling:
-https://arxiv.org/pdf/1912.01496.pdf
+> 39 men in America's annual yearly military academy (walking the steps to the stratosphere). Learn more about how Arizona organized military schools (#IGCF) organize, organise, and in action!
 
-Dataset:
-http://visionandlanguage.net/VIST/dataset.html
+## How to use
+
+To perform VIST Dataset evaluation, you need to first download the dataset. Executing `downloader.py` will download the dataset.
+
+Next, evaluate our method on the VIST dataset. Executing `main.py` will evaluate our method on the VIST dataset.
+
+On main.py, you can use just the language model evaluation, by setting `test_baseline` to `True`.
+
+By running storyteller.py, you can see the storyteller's output on given `story_id`.
